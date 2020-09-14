@@ -53,7 +53,7 @@ class Evaluator():
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
 
-                prec1, prec3 = accuracy(outputs.data, labels, topk=(1, 3))
+                prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
                 losses.update(loss.item(), inputs.size(0))
                 top1.update(prec1.item(), inputs.size(0))
                         
@@ -65,7 +65,7 @@ class Evaluator():
 
         return result_dict
 
-    def test(self, data_loader, args, result_dict):
+    def test(self, data_loader, args, result_dict, is_best):
         top1 = AverageMeter()
 
         self.model.eval()
@@ -74,10 +74,12 @@ class Evaluator():
                 inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = self.model(inputs)
 
-                prec1, prec3 = accuracy(outputs.data, labels, topk=(1, 3))
+                prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
                 top1.update(prec1.item(), inputs.size(0))
-                        
-        print('----Test Set Results Summary----')
+        if is_best:
+            print('----Test Set Results with the best Summary----')
+        else:
+            print('----Test Set Results with the last Summary----')
         print('Top-1 accuracy: {:.2f}%'.format(top1.avg))
 
         result_dict['test_acc'].append(top1.avg)

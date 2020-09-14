@@ -45,19 +45,29 @@ def main():
 
     if args.evaluate:
         """ load model checkpoint """
-        model.load()
-        result_dict = evaluator.test(test_loader, args, result_dict)
+        model.load("best_model")
+        result_dict = evaluator.test(test_loader, args, result_dict, True)
+
+        model.load("last_model")
+        result_dict = evaluator.test(test_loader, args, result_dict, False)
+
+
     else:
         evaluator.save(result_dict)
 
         best_val_acc = 0.0
         """ define training loop """
+        tolerance = 0
         for epoch in range(args.epochs):
             result_dict['epoch'] = epoch
             result_dict = trainer.train(train_loader, epoch, args, result_dict)
             result_dict = evaluator.evaluate(valid_loader, epoch, args, result_dict)
 
+            tolerance +=1
+            print("tolerance: ",tolerance)
+
             if result_dict['val_acc'][-1] > best_val_acc:
+                tolerance = 0
                 print("{} epoch, best epoch was updated! {}%".format(epoch, result_dict['val_acc'][-1]))
                 best_val_acc = result_dict['val_acc'][-1]
                 model.save(checkpoint_name='best_model')
@@ -65,7 +75,10 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-        result_dict = evaluator.test(test_loader, args, result_dict)
+            if tolerance > 20:
+                break
+
+        result_dict = evaluator.test(test_loader, args, result_dict, False)
         evaluator.save(result_dict)
 
         """ save model checkpoint """
@@ -73,7 +86,7 @@ def main():
 
         """ calculate test accuracy using best model """
         model.load(checkpoint_name='best_model')
-        result_dict = evaluator.test(test_loader, args, result_dict)
+        result_dict = evaluator.test(test_loader, args, result_dict,True)
         evaluator.save(result_dict)
 
     print(result_dict)

@@ -53,10 +53,10 @@ class RegNet(AnyNet):
         self.checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name, 'model.pt')
 
         SE_ON = True
-        DEPTH = 27
-        W0 = 48
-        WA = 20.71
-        WM = 2.65
+        DEPTH = 21
+        W0 = 80
+        WA = 42.63
+        WM = 2.66
         GROUP_W = 24
 
         # Generate RegNet ws per block

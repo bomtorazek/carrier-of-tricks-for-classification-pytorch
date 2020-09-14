@@ -210,6 +210,15 @@ HEAD_W = 1536
 _C.EN.SE_R = 0.25
 _C.EN.DC_RATIO = 0.0
 _C.EN.DROPOUT_RATIO = 0.0
+
+# EfficientNet-B5 Config
+  STEM_W: 48
+  STRIDES: [1, 2, 2, 2, 1, 2, 1]
+  DEPTHS: [3, 5, 5, 7, 7, 9, 3]
+  WIDTHS: [24, 40, 64, 128, 176, 304, 512]
+  EXP_RATIOS: [1, 6, 6, 6, 6, 6, 6]
+  KERNELS: [3, 3, 5, 3, 5, 5, 3]
+  HEAD_W: 2048
 """
 
 
@@ -227,13 +236,13 @@ class EfficientNet(nn.Module):
             raise ValueError('Invalid shape: {}'.format(shape))
         self.H, self.W, self.C = shape
         
-        STEM_W = 32
+        STEM_W = 48
         STRIDES = [1, 2, 2, 2, 1, 2, 1]
-        DEPTHS = [2, 3, 3, 4, 4, 5, 2]
-        WIDTHS = [16, 24, 48, 88, 120, 208, 352]
+        DEPTHS = [2, 4, 4, 6, 6, 8, 2]
+        WIDTHS = [24, 32, 56, 112, 160, 272, 448]
         EXP_RATIOS = [1, 6, 6, 6, 6, 6, 6]
         KERNELS = [3, 3, 5, 3, 5, 5, 3]
-        HEAD_W = 1408
+        HEAD_W = 1792
 
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)

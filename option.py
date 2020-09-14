@@ -11,13 +11,15 @@ def get_args():
     parser.add_argument('--num_classes', type=int, default=6)
     parser.add_argument('--pretrained', type=int, default=1)
     parser.add_argument('--pretrained_path', type=str, default=None)
-    parser.add_argument('--checkpoint_dir', type=str, default='/data_hdd/hoseong/checkpoint_onlytrain')
-    parser.add_argument('--checkpoint_name', type=str, default='')
+    parser.add_argument('--checkpoint_dir', type=str, default=r'C:\Users\esuh\Desktop\Project\COI-Carrier\carrier-of-tricks-for-classification-pytorch\checkpoint')
+    parser.add_argument('--checkpoint_name', type=str, default='') #?
     parser.add_argument('--zero_gamma', action='store_true', default=False)
 
     # data loading
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--seed', type=int, default=42, help='random seed')
+    parser.add_argument('--sua_data', type = int, default=0, help='1 with dataset with the config of sualab')
+    parser.add_argument('--sua_fold', type = str, default='1-1', help='eg) 1-1')
 
     # training hyper parameters
     parser.add_argument('--batch_size', type=int, default=64)

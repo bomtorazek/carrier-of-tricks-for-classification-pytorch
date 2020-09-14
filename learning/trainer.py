@@ -41,7 +41,7 @@ class Trainer:
             if len(labels.size()) > 1:
                 labels = torch.argmax(labels, axis=1)
 
-            prec1, prec3 = accuracy(outputs.data, labels, topk=(1, 3))
+            prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
 

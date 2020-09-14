@@ -3,6 +3,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+import os
+osp = os.path
 
 import torch
 import torch.optim as optim
@@ -10,6 +12,8 @@ import torch.optim.lr_scheduler as lrs
 from torch.utils.data.sampler import SubsetRandomSampler
 import torchvision
 from torchvision import transforms as T
+from vision.dataset import SingleImageClassificationDataset
+from vision.transform import *
 
 from network.resnet import *
 from network.efficientnet import *
@@ -38,7 +42,7 @@ def get_model(args, shape, num_classes):
             checkpoint_dir=args.checkpoint_dir,
             checkpoint_name=args.checkpoint_name
         )#.cuda(args.gpu)
-        pt_ckpt = torch.load('pretrained_weights/RegNetY-1.6GF_dds_8gpu.pyth', map_location="cpu")
+        pt_ckpt = torch.load('pretrained_weights/RegNetY-3.2GF_dds_8gpu.pyth', map_location="cpu")
         model.load_state_dict(pt_ckpt["model_state"])
         model.head = AnyHead(w_in=model.prev_w, nc=num_classes)#.cuda(args.gpu)
     elif 'EfficientNet' in args.model:
@@ -48,7 +52,7 @@ def get_model(args, shape, num_classes):
             checkpoint_dir=args.checkpoint_dir,
             checkpoint_name=args.checkpoint_name
         )#.cuda(args.gpu)
-        pt_ckpt = torch.load('pretrained_weights/EN-B2_dds_8gpu.pyth', map_location="cpu")
+        pt_ckpt = torch.load('pretrained_weights/EN-B4_dds_8gpu.pyth', map_location="cpu")
         model.load_state_dict(pt_ckpt["model_state"])
         model.head = EffHead(w_in=model.prev_w, w_out=model.head_w, nc=num_classes)#.cuda(args.gpu)
     else:
@@ -141,29 +145,50 @@ def make_dataloader(args):
         T.ToTensor(),
         ])
 
-    trainset = torchvision.datasets.ImageFolder(root="data/seg_train/seg_train", transform=train_trans)
-    validset = torchvision.datasets.ImageFolder(root="data/seg_train/seg_train", transform=valid_trans)
-    testset = torchvision.datasets.ImageFolder(root="data/seg_test/seg_test", transform=test_trans)
+    transdict = {'train': [To3channel(),Resize((256,256)), HFlip(), ToTensor()], 'val': [To3channel(),Resize((256,256)), ToTensor()], 'test':[To3channel(),Resize((256,256)), ToTensor()]}
+    
 
-    np.random.seed(args.seed)
-    targets = trainset.targets
-    train_idx, valid_idx = train_test_split(np.arange(len(targets)), test_size=0.2, shuffle=True, stratify=targets)
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
+    # for sualab
+    if args.sua_data:
+        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-blue\sides\patch_cropped_binary-labeled_for_cls'
+        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\train.txt'.format(args.sua_fold)), 
+                'val':osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\validation.txt'.format(args.sua_fold)),
+                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\test.txt'.format(args.sua_fold))}
+        imdir = osp.join(DEFAULT_DATADIR, 'image')
+        antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_image.2class.json')
+        
+        datasets = {x: SingleImageClassificationDataset(imdir, antnpath, imsets[x],
+                                                transforms=transdict[x]) for x in ['train','val','test']}
+        shuffle_dict = {'train' : True, 'val' : True, 'test': False} # 
+        dataloaders = {x: torch.utils.data.DataLoader(datasets[x], batch_size=args.batch_size, shuffle = shuffle_dict[x], num_workers=args.num_workers)
+              for x in ['train', 'val', 'test']}
 
-    train_loader = torch.utils.data.DataLoader(
-        trainset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.num_workers
-    )
+    else:
+        trainset = torchvision.datasets.ImageFolder(root=r"C:\Users\esuh\data\999_project\999_intel_dataset\seg_train\seg_train", transform=train_trans) 
+        validset = torchvision.datasets.ImageFolder(root=r"C:\Users\esuh\data\999_project\999_intel_dataset\seg_train\seg_train", transform=valid_trans)
+        testset = torchvision.datasets.ImageFolder(root=r"C:\Users\esuh\data\999_project\999_intel_dataset\seg_test\seg_test", transform=test_trans)
 
-    valid_loader = torch.utils.data.DataLoader(
-        validset, batch_size=args.batch_size, sampler=valid_sampler, num_workers=args.num_workers
-    )
+        np.random.seed(args.seed)
+        targets = trainset.targets
+        train_idx, valid_idx = train_test_split(np.arange(len(targets)), test_size=0.2, shuffle=True, stratify=targets) #No need here
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
 
-    test_loader = torch.utils.data.DataLoader(
-        testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers
-    )
+        train_loader = torch.utils.data.DataLoader(
+            trainset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.num_workers
+        )
 
-    return train_loader, valid_loader, test_loader
+        valid_loader = torch.utils.data.DataLoader(
+            validset, batch_size=args.batch_size, sampler=valid_sampler, num_workers=args.num_workers
+        )
+
+        test_loader = torch.utils.data.DataLoader(
+            testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers
+        )
+        dataloaders = {'train': train_loader, 'val':valid_loader, 'test': test_loader}
+    
+
+    return dataloaders['train'], dataloaders['val'], dataloaders['test']
 
 
 def plot_learning_curves(metrics, cur_epoch, args):
@@ -207,8 +232,11 @@ class AverageMeter(object):
         if val < self.min:
             self.min = val
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, num_cl,topk=(1,)):
     """Computes the precision@k for the specified values of k"""
+    
+    if num_cl <3:
+        topk = (1,1)
     maxk = max(topk)
     batch_size = target.size(0)
 
