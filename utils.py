@@ -268,7 +268,7 @@ def sua_metric(output, target):
         if (conf_mat.shape) == (2,2):
 
             tn, fp, fn, tp = conf_mat[0,0], conf_mat[0,1], conf_mat[1,0], conf_mat[1,1]
-            print('wow')
+           
         elif conf_mat.shape ==(1,1):
             if predict[0] == 0:
                 tn = conf_mat[0,0]
@@ -276,7 +276,7 @@ def sua_metric(output, target):
             elif predict[1] == 1:
                 tp = conf_mat[0,0]
                 tn, fp, fn = 0,0,0
-            print(tp,tn,fp,fn)
+    
 
         overkill = fp/(tn+fp+fn+tp)
         underkill = fn / (tn+fp+fn+tp)
@@ -285,6 +285,6 @@ def sua_metric(output, target):
             print(conf_mat)
             return underkill * 100.0
 
-        threshold += 0.01 # 0.0001
+        threshold += 0.0001 
 
         

@@ -56,7 +56,7 @@ class Evaluator():
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
                 
-                print(batch_idx, "eval")
+                
                 SUAmetric = sua_metric(outputs.data, labels)
 
                 losses.update(loss.item(), inputs.size(0))
@@ -85,7 +85,6 @@ class Evaluator():
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
                 
-                print(batch_idx, "test")
                 SUAmetric = sua_metric(outputs.data, labels)
 
                 top1.update(prec1.item(), inputs.size(0))

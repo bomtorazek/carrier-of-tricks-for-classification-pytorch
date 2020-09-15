@@ -56,7 +56,7 @@ def main():
         evaluator.save(result_dict)
 
         best_val_acc = 0.0
-        best_sua_metric = 1.0
+        best_sua_metric = 100.0
         """ define training loop """
         tolerance = 0
         for epoch in range(args.epochs):
@@ -71,7 +71,7 @@ def main():
             if result_dict['val_SUAmetric'][-1] <= best_sua_metric:
                 tolerance = 0
                 print("{} epoch, best epoch was updated! {}%".format(epoch, result_dict['val_SUAmetric'][-1]))
-                best_val_acc = result_dict['val_SUAmetric'][-1]
+                best_sua_metric = result_dict['val_SUAmetric'][-1]
                 model.save(checkpoint_name='best_model')
 
             evaluator.save(result_dict)
