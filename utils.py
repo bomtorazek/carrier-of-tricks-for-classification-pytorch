@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 import os
 osp = os.path
 
@@ -150,12 +151,12 @@ def make_dataloader(args):
 
     # for sualab
     if args.sua_data:
-        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-blue\sides\patch_cropped_binary-labeled_for_cls'
-        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\train.txt'.format(args.sua_fold)), 
-                'val':osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\validation.txt'.format(args.sua_fold)),
-                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_image.2class\fold.{}\test.txt'.format(args.sua_fold))}
+        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\front\patch_cropped_binary-labeled_for_cls'
+        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
+                'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
+                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.1.txt')}
         imdir = osp.join(DEFAULT_DATADIR, 'image')
-        antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_image.2class.json')
+        antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_2class.json')
         
         datasets = {x: SingleImageClassificationDataset(imdir, antnpath, imsets[x],
                                                 transforms=transdict[x]) for x in ['train','val','test']}
@@ -241,7 +242,10 @@ def accuracy(output, target, num_cl,topk=(1,)):
     batch_size = target.size(0)
 
     _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
+    # pred >>[[1],[0], ....]
+    pred = pred.t() #[[1,0,...]]
+    
+    # target >> [1,0,...]
     correct = pred.eq(target.view(1, -1).expand_as(pred))
 
     res = []
@@ -249,3 +253,24 @@ def accuracy(output, target, num_cl,topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
+def sua_metric(output, target):
+    softmax = torch.nn.Softmax(dim=1)
+    output = softmax(output)
+    output = output[:,1]
+
+    threshold = 0
+    while 1:
+        predict = (output>=threshold).int()
+        conf_mat = confusion_matrix(target.cpu(),predict.cpu())
+        tn, fp, fn, tp = conf_mat[0,0], conf_mat[0,1], conf_mat[1,0], conf_mat[1,1]
+        
+        overkill = fp/(tn+fp+fn+tp)
+        underkill = fn / (tn+fp+fn+tp)
+
+        if overkill <= 0.25:
+            return underkill, threshold
+            
+        threshold += 0.0001
+
+        

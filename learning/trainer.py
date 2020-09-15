@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from utils import AverageMeter, accuracy
+from utils import AverageMeter, accuracy, sua_metric
 from learning.smoothing import LabelSmoothing
 from learning.mixup import MixUpWrapper, NLLMultiLabelSmooth
 from learning.cutmix import cutmix
@@ -42,6 +42,8 @@ class Trainer:
                 labels = torch.argmax(labels, axis=1)
 
             prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
+            SUAmetric = sua_metric(outputs.data, labels)
+
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
 

@@ -39,7 +39,7 @@ def main():
     scheduler = make_scheduler(args, optimizer)
     
     """ define trainer, evaluator, result_dictionary """
-    result_dict = {'args':vars(args), 'epoch':[], 'train_loss' : [], 'train_acc' : [], 'val_loss' : [], 'val_acc' : [], 'test_acc':[]}
+    result_dict = {'args':vars(args), 'epoch':[], 'train_loss' : [], 'train_acc' : [], 'train_SUAmetric' : [], 'val_loss' : [], 'val_acc' : [], 'val_SUAmetric' : [], 'test_acc':[], 'test_SUAmetric' : []}
     trainer = Trainer(model, criterion, optimizer, scheduler)
     evaluator = Evaluator(model, criterion)
 
@@ -75,7 +75,7 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-            if tolerance > 20:
+            if tolerance > 120:
                 break
 
         result_dict = evaluator.test(test_loader, args, result_dict, False)
