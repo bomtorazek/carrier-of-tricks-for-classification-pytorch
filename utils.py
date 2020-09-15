@@ -196,16 +196,17 @@ def plot_learning_curves(metrics, cur_epoch, args):
     x = np.arange(cur_epoch+1)
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('epochs')
-    ax1.set_ylabel('loss')
-    ln1 = ax1.plot(x, metrics['train_loss'], color='tab:red')
-    ln2 = ax1.plot(x, metrics['val_loss'], color='tab:red', linestyle='dashed')
+    # ax1.set_ylabel('loss')
+    ax1.set_ylabel('sua_metric')
+    ln1 = ax1.plot(x, metrics['train_SUAmetric'], color='tab:red')
+    ln2 = ax1.plot(x, metrics['val_SUAmetric'], color='tab:red', linestyle='dashed')
     ax1.grid()
     ax2 = ax1.twinx()
     ax2.set_ylabel('accuracy')
     ln3 = ax2.plot(x, metrics['train_acc'], color='tab:blue')
     ln4 = ax2.plot(x, metrics['val_acc'], color='tab:blue', linestyle='dashed')
     lns = ln1+ln2+ln3+ln4
-    plt.legend(lns, ['Train loss', 'Validation loss', 'Train accuracy','Validation accuracy'])
+    plt.legend(lns, ['Train sua', 'Validation sua', 'Train accuracy','Validation accuracy'])
     plt.tight_layout()
     plt.savefig('{}/{}/learning_curve.png'.format(args.checkpoint_dir, args.checkpoint_name), bbox_inches='tight')
     plt.close('all')
@@ -252,6 +253,7 @@ def accuracy(output, target, num_cl,topk=(1,)):
     for k in topk:
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
+
     return res
 
 def sua_metric(output, target):
@@ -263,14 +265,26 @@ def sua_metric(output, target):
     while 1:
         predict = (output>=threshold).int()
         conf_mat = confusion_matrix(target.cpu(),predict.cpu())
-        tn, fp, fn, tp = conf_mat[0,0], conf_mat[0,1], conf_mat[1,0], conf_mat[1,1]
-        
+        if (conf_mat.shape) == (2,2):
+
+            tn, fp, fn, tp = conf_mat[0,0], conf_mat[0,1], conf_mat[1,0], conf_mat[1,1]
+            print('wow')
+        elif conf_mat.shape ==(1,1):
+            if predict[0] == 0:
+                tn = conf_mat[0,0]
+                tp, fp, fn = 0,0,0
+            elif predict[1] == 1:
+                tp = conf_mat[0,0]
+                tn, fp, fn = 0,0,0
+            print(tp,tn,fp,fn)
+
         overkill = fp/(tn+fp+fn+tp)
         underkill = fn / (tn+fp+fn+tp)
 
         if overkill <= 0.25:
-            return underkill, threshold
-            
-        threshold += 0.0001
+            print(conf_mat)
+            return underkill * 100.0
+
+        threshold += 0.01 # 0.0001
 
         

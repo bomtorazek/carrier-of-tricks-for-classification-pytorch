@@ -1,7 +1,7 @@
 import os
 import json
 import torch
-from utils import AverageMeter, accuracy
+from utils import AverageMeter, accuracy, sua_metric
 
 class Evaluator():
     def __init__(self, model, criterion):
@@ -44,6 +44,7 @@ class Evaluator():
     def evaluate(self, data_loader, epoch, args, result_dict):
         losses = AverageMeter()
         top1 = AverageMeter()
+        sua = AverageMeter()
 
         self.model.eval()
         total_loss = 0
@@ -54,19 +55,27 @@ class Evaluator():
                 loss = self.criterion(outputs, labels)
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
+                
+                print(batch_idx, "eval")
+                SUAmetric = sua_metric(outputs.data, labels)
+
                 losses.update(loss.item(), inputs.size(0))
                 top1.update(prec1.item(), inputs.size(0))
+                sua.update(SUAmetric.item(), inputs.size(0))
+
                         
         print('----Validation Results Summary----')
-        print('Epoch: [{}] Top-1 accuracy: {:.2f}%'.format(epoch, top1.avg))
+        print('Epoch: [{}] Top-1 accuracy: {:.2f}%, sua-metric: {:.3f}%'.format(epoch, top1.avg,sua.avg))
 
         result_dict['val_loss'].append(losses.avg)
         result_dict['val_acc'].append(top1.avg)
+        result_dict['val_SUAmetric'].append(sua.avg)
 
         return result_dict
 
     def test(self, data_loader, args, result_dict, is_best):
         top1 = AverageMeter()
+        sua = AverageMeter()
 
         self.model.eval()
         with torch.no_grad():
@@ -75,14 +84,24 @@ class Evaluator():
                 outputs = self.model(inputs)
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
+                
+                print(batch_idx, "test")
+                SUAmetric = sua_metric(outputs.data, labels)
+
                 top1.update(prec1.item(), inputs.size(0))
+                sua.update(SUAmetric.item(), inputs.size(0))
+
         if is_best:
             print('----Test Set Results with the best Summary----')
         else:
             print('----Test Set Results with the last Summary----')
+
         print('Top-1 accuracy: {:.2f}%'.format(top1.avg))
+        print('SUA_metric: {:.3f}%'.format(sua.avg))
+
 
         result_dict['test_acc'].append(top1.avg)
+        result_dict['test_SUAmetric'].append(sua.avg)
 
         return result_dict
     
