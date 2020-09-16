@@ -14,6 +14,7 @@ def get_args():
     parser.add_argument('--checkpoint_dir', type=str, default=r'C:\Users\esuh\Desktop\Project\COI-Carrier\carrier-of-tricks-for-classification-pytorch\checkpoint')
     parser.add_argument('--checkpoint_name', type=str, default='') #?
     parser.add_argument('--zero_gamma', action='store_true', default=False)
+    parser.add_argument('--model_size', type =str, default = '3.2GF')
 
     # data loading
     parser.add_argument('--num_workers', type=int, default=0)

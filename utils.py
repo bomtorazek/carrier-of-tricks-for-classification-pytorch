@@ -43,7 +43,7 @@ def get_model(args, shape, num_classes):
             checkpoint_dir=args.checkpoint_dir,
             checkpoint_name=args.checkpoint_name
         )#.cuda(args.gpu)
-        pt_ckpt = torch.load('pretrained_weights/RegNetY-3.2GF_dds_8gpu.pyth', map_location="cpu")
+        pt_ckpt = torch.load('pretrained_weights/RegNetY-{}_dds_8gpu.pyth'.format(args.model_size), map_location="cpu")
         model.load_state_dict(pt_ckpt["model_state"])
         model.head = AnyHead(w_in=model.prev_w, nc=num_classes)#.cuda(args.gpu)
     elif 'EfficientNet' in args.model:
@@ -151,7 +151,7 @@ def make_dataloader(args):
 
     # for sualab
     if args.sua_data:
-        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\front\patch_cropped_binary-labeled_for_cls'
+        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\sides\patch_cropped_binary-labeled_for_cls'
         imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
                 'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
                 'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.1.txt')}
@@ -282,7 +282,6 @@ def sua_metric(output, target):
         underkill = fn / (tn+fp+fn+tp)
 
         if overkill <= 0.25:
-            print(conf_mat)
             return underkill * 100.0
 
         threshold += 0.0001 

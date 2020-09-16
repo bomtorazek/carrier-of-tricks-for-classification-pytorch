@@ -68,7 +68,7 @@ def main():
             print("tolerance: ",tolerance)
 
             # if result_dict['val_acc'][-1] > best_val_acc:
-            if result_dict['val_SUAmetric'][-1] <= best_sua_metric:
+            if result_dict['val_SUAmetric'][-1] < best_sua_metric:
                 tolerance = 0
                 print("{} epoch, best epoch was updated! {}%".format(epoch, result_dict['val_SUAmetric'][-1]))
                 best_sua_metric = result_dict['val_SUAmetric'][-1]
@@ -77,7 +77,7 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-            if tolerance > 120:
+            if tolerance > 20:
                 break
 
         result_dict = evaluator.test(test_loader, args, result_dict, False)

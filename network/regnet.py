@@ -2,6 +2,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from network.anynet import AnyNet
+from option import get_args
 
 def quantize_float(f, q):
     """Converts a float to closest non-zero int divisible by q."""
@@ -52,12 +53,64 @@ class RegNet(AnyNet):
             os.makedirs(checkpoint_dir)
         self.checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name, 'model.pt')
 
+        args = get_args()
+
         SE_ON = True
-        DEPTH = 21
-        W0 = 80
-        WA = 42.63
-        WM = 2.66
-        GROUP_W = 24
+        if args.model_size == '400MF':
+            DEPTH= 16
+            W0= 48
+            WA= 27.89
+            WM= 2.09
+            GROUP_W= 8
+        elif args.model_size == '600MF':
+            DEPTH= 15
+            W0= 48
+            WA= 32.54
+            WM= 2.32
+            GROUP_W= 16
+        elif args.model_size == '800MF':
+            DEPTH= 14
+            W0= 56
+            WA= 38.84
+            WM= 2.4
+            GROUP_W= 16
+        elif args.model_size == '1.6GF':
+            DEPTH= 27
+            W0= 48
+            WA= 20.71
+            WM= 2.65
+            GROUP_W= 24
+        elif args.model_size == '3.2GF':
+            DEPTH= 21
+            W0= 80
+            WA= 42.63
+            WM= 2.66
+            GROUP_W= 24
+        elif args.model_size == '4.0GF':
+            DEPTH= 22
+            W0= 96
+            WA= 31.41
+            WM= 2.24
+            GROUP_W= 64
+        elif args.model_size == '6.4GF':
+            DEPTH= 25
+            W0= 112
+            WA= 33.22
+            WM= 2.27
+            GROUP_W= 72
+        elif args.model_size == '8.0GF':
+            DEPTH= 17
+            W0= 192
+            WA= 76.82
+            WM= 2.19
+            GROUP_W= 56
+        elif args.model_size == '12GF':
+            DEPTH= 19
+            W0= 168
+            WA= 73.36
+            WM= 2.37
+            GROUP_W= 112
+                                
 
         # Generate RegNet ws per block
         b_ws, num_s, _, _ = generate_regnet(
