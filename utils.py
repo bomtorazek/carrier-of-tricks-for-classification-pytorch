@@ -280,10 +280,14 @@ def sua_metric(output, target):
 
         overkill = fp/(tn+fp+fn+tp)
         underkill = fn / (tn+fp+fn+tp)
+ 
 
         if overkill <= 0.25:
+            print(overkill,threshold)
             return underkill * 100.0
 
-        threshold += 0.0001 
+        threshold += 0.00001
+def auroc(output,target):
+    
 
         

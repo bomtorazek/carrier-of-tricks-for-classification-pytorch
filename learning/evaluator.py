@@ -79,28 +79,35 @@ class Evaluator():
 
         self.model.eval()
         with torch.no_grad():
+            output_list = []
+            labels_list =[]
             for batch_idx, (inputs, labels) in enumerate(data_loader):
                 inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = self.model(inputs)
-
-                prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
                 
-                SUAmetric = sua_metric(outputs.data, labels)
+                prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
+
+                output_list.append(outputs)
+                labels_list.append(labels)
 
                 top1.update(prec1.item(), inputs.size(0))
-                sua.update(SUAmetric.item(), inputs.size(0))
+
 
         if is_best:
             print('----Test Set Results with the best Summary----')
         else:
             print('----Test Set Results with the last Summary----')
 
+        concated_outputs = torch.cat(output_list, dim = 0)
+        concated_labels = torch.cat(labels_list, dim = 0)
+        SUAmetric = sua_metric(concated_outputs.data, concated_labels)
+
         print('Top-1 accuracy: {:.2f}%'.format(top1.avg))
-        print('SUA_metric: {:.3f}%'.format(sua.avg))
+        print('SUA_metric: {:.3f}%'.format(SUAmetric.item()))
 
 
         result_dict['test_acc'].append(top1.avg)
-        result_dict['test_SUAmetric'].append(sua.avg)
+        result_dict['test_SUAmetric'].append(SUAmetric.item())
 
         return result_dict
     
