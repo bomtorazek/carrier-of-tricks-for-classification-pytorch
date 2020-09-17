@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
 import os
 osp = os.path
 
@@ -151,7 +151,7 @@ def make_dataloader(args):
 
     # for sualab
     if args.sua_data:
-        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\sides\patch_cropped_binary-labeled_for_cls'
+        DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\{}\patch_cropped_binary-labeled_for_cls'.format(args.data_type)
         imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
                 'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
                 'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.1.txt')}
@@ -197,16 +197,16 @@ def plot_learning_curves(metrics, cur_epoch, args):
     fig, ax1 = plt.subplots()
     ax1.set_xlabel('epochs')
     # ax1.set_ylabel('loss')
-    ax1.set_ylabel('sua_metric')
-    ln1 = ax1.plot(x, metrics['train_SUAmetric'], color='tab:red')
-    ln2 = ax1.plot(x, metrics['val_SUAmetric'], color='tab:red', linestyle='dashed')
+    ax1.set_ylabel('auroc')
+    ln1 = ax1.plot(x, metrics['train_auroc'], color='tab:red')
+    ln2 = ax1.plot(x, metrics['val_auroc'], color='tab:red', linestyle='dashed')
     ax1.grid()
     ax2 = ax1.twinx()
     ax2.set_ylabel('accuracy')
     ln3 = ax2.plot(x, metrics['train_acc'], color='tab:blue')
     ln4 = ax2.plot(x, metrics['val_acc'], color='tab:blue', linestyle='dashed')
     lns = ln1+ln2+ln3+ln4
-    plt.legend(lns, ['Train sua', 'Validation sua', 'Train accuracy','Validation accuracy'])
+    plt.legend(lns, ['Train auroc', 'Validation auroc', 'Train accuracy','Validation accuracy'])
     plt.tight_layout()
     plt.savefig('{}/{}/learning_curve.png'.format(args.checkpoint_dir, args.checkpoint_name), bbox_inches='tight')
     plt.close('all')
@@ -277,17 +277,23 @@ def sua_metric(output, target):
                 tp = conf_mat[0,0]
                 tn, fp, fn = 0,0,0
     
-
         overkill = fp/(tn+fp+fn+tp)
         underkill = fn / (tn+fp+fn+tp)
  
-
         if overkill <= 0.25:
             print(overkill,threshold)
             return underkill * 100.0
 
         threshold += 0.00001
+
+
 def auroc(output,target):
-    
+    softmax = torch.nn.Softmax(dim=1)
+    output = softmax(output)
+    output = output[:,1]
+ 
+    return roc_auc_score(target.cpu(),output.cpu()) *100
+
+
 
         

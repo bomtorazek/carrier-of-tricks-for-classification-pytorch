@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from utils import AverageMeter, accuracy, sua_metric
+from utils import AverageMeter, accuracy, auroc
 from learning.smoothing import LabelSmoothing
 from learning.mixup import MixUpWrapper, NLLMultiLabelSmooth
 from learning.cutmix import cutmix
@@ -18,7 +18,6 @@ class Trainer:
         
         losses = AverageMeter()
         top1 = AverageMeter()
-        sua = AverageMeter()
 
         self.model.train()
 
@@ -28,6 +27,8 @@ class Trainer:
         elif args.label_smooth > 0.0:
             self.criterion = LabelSmoothing(args.label_smooth)
 
+        output_list = []
+        labels_list =[]
         for batch_idx, (inputs, labels) in enumerate(data_loader):
             inputs, labels = inputs.cuda(), labels.cuda()
 
@@ -43,12 +44,13 @@ class Trainer:
                 labels = torch.argmax(labels, axis=1)
 
             prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
-            SUAmetric = sua_metric(outputs.data, labels)
+            
+            output_list.append(outputs)
+            labels_list.append(labels)
 
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
-            sua.update(SUAmetric.item(), inputs.size(0))
-
+            
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -62,22 +64,23 @@ class Trainer:
                     ('epoch: {:0>3} [{: >' + _s + '}/{} ({: >3.0f}%)]').format(epoch, count, len(data_loader.dataloader.sampler),\
                      100 * count / len(data_loader.dataloader.sampler)),
                     'train_loss: {: >4.2e}'.format(total_loss / count),
-                    'train_accuracy : {:.2f}%'.format(top1.avg),
-                    'train_SUAmetric : {:.3f}%'.format(sua.avg)
+                    'train_accuracy : {:.2f}%'.format(top1.avg)
                     ]
                 else:
                     _s = str(len(str(len(data_loader.sampler))))
                     ret = [
                         ('epoch: {:0>3} [{: >' + _s + '}/{} ({: >3.0f}%)]').format(epoch, count, len(data_loader.sampler), 100 * count / len(data_loader.sampler)),
                         'train_loss: {: >4.2e}'.format(total_loss / count),
-                        'train_accuracy : {:.2f}%'.format(top1.avg),
-                        'train_SUAmetric : {:.3f}%'.format(sua.avg)
+                        'train_accuracy : {:.2f}%'.format(top1.avg)
                     ]
                 print(', '.join(ret))
-
+        concated_outputs = torch.cat(output_list, dim = 0)
+        concated_labels = torch.cat(labels_list, dim = 0)
+        AUROC = auroc(concated_outputs.data, concated_labels)
+        
         self.scheduler.step()
         result_dict['train_loss'].append(losses.avg)
         result_dict['train_acc'].append(top1.avg)
-        result_dict['train_SUAmetric'].append(sua.avg)
+        result_dict['train_auroc'].append(AUROC.item())
 
         return result_dict

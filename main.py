@@ -39,7 +39,7 @@ def main():
     scheduler = make_scheduler(args, optimizer)
     
     """ define trainer, evaluator, result_dictionary """
-    result_dict = {'args':vars(args), 'epoch':[], 'train_loss' : [], 'train_acc' : [], 'train_SUAmetric' : [], 'val_loss' : [], 'val_acc' : [], 'val_SUAmetric' : [], 'test_acc':[], 'test_SUAmetric' : []}
+    result_dict = {'args':vars(args), 'epoch':[], 'train_loss' : [], 'train_acc' : [], 'train_auroc' : [], 'val_loss' : [], 'val_acc' : [], 'val_auroc' : [], 'test_acc':[], 'test_auroc' : []}
     trainer = Trainer(model, criterion, optimizer, scheduler)
     evaluator = Evaluator(model, criterion)
 
@@ -56,9 +56,10 @@ def main():
         evaluator.save(result_dict)
 
         best_val_acc = 0.0
-        best_sua_metric = 100.0
+        best_val_auroc = 0.0
         """ define training loop """
         tolerance = 0
+
         for epoch in range(args.epochs):
             result_dict['epoch'] = epoch
             result_dict = trainer.train(train_loader, epoch, args, result_dict)
@@ -68,10 +69,10 @@ def main():
             print("tolerance: ",tolerance)
 
             # if result_dict['val_acc'][-1] > best_val_acc:
-            if result_dict['val_SUAmetric'][-1] < best_sua_metric:
+            if result_dict['val_auroc'][-1] > best_val_auroc:
                 tolerance = 0
-                print("{} epoch, best epoch was updated! {}%".format(epoch, result_dict['val_SUAmetric'][-1]))
-                best_sua_metric = result_dict['val_SUAmetric'][-1]
+                print("{} epoch, best epoch was updated! {}%".format(epoch, result_dict['val_auroc'][-1]))
+                best_val_auroc = result_dict['val_auroc'][-1]
                 model.save(checkpoint_name='best_model')
 
             evaluator.save(result_dict)

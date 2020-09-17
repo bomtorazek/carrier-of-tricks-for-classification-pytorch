@@ -1,7 +1,7 @@
 import os
 import json
 import torch
-from utils import AverageMeter, accuracy, sua_metric
+from utils import AverageMeter, accuracy, auroc
 
 class Evaluator():
     def __init__(self, model, criterion):
@@ -44,44 +44,49 @@ class Evaluator():
     def evaluate(self, data_loader, epoch, args, result_dict):
         losses = AverageMeter()
         top1 = AverageMeter()
-        sua = AverageMeter()
 
         self.model.eval()
         total_loss = 0
+
         with torch.no_grad():
+            output_list = []
+            labels_list =[]
             for batch_idx, (inputs, labels) in enumerate(data_loader):
+
                 inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, labels)
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
-                
-                
-                SUAmetric = sua_metric(outputs.data, labels)
-
+             
+                output_list.append(outputs)
+                labels_list.append(labels)
                 losses.update(loss.item(), inputs.size(0))
                 top1.update(prec1.item(), inputs.size(0))
-                sua.update(SUAmetric.item(), inputs.size(0))
 
                         
         print('----Validation Results Summary----')
-        print('Epoch: [{}] Top-1 accuracy: {:.2f}%, sua-metric: {:.3f}%'.format(epoch, top1.avg,sua.avg))
+        concated_outputs = torch.cat(output_list, dim = 0)
+        concated_labels = torch.cat(labels_list, dim = 0)
+
+        AUROC = auroc(concated_outputs.data, concated_labels)
+        print('Epoch: [{}] Top-1 accuracy: {:.2f}%, AUROC: {:.3f}%'.format(epoch, top1.avg, AUROC.item()))
 
         result_dict['val_loss'].append(losses.avg)
         result_dict['val_acc'].append(top1.avg)
-        result_dict['val_SUAmetric'].append(sua.avg)
+        result_dict['val_auroc'].append(AUROC.item())
 
         return result_dict
 
     def test(self, data_loader, args, result_dict, is_best):
         top1 = AverageMeter()
-        sua = AverageMeter()
 
         self.model.eval()
         with torch.no_grad():
             output_list = []
             labels_list =[]
             for batch_idx, (inputs, labels) in enumerate(data_loader):
+
                 inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = self.model(inputs)
                 
@@ -100,14 +105,15 @@ class Evaluator():
 
         concated_outputs = torch.cat(output_list, dim = 0)
         concated_labels = torch.cat(labels_list, dim = 0)
-        SUAmetric = sua_metric(concated_outputs.data, concated_labels)
+
+        AUROC = auroc(concated_outputs.data, concated_labels)
 
         print('Top-1 accuracy: {:.2f}%'.format(top1.avg))
-        print('SUA_metric: {:.3f}%'.format(SUAmetric.item()))
+        print('AUROC: {:.3f}%'.format(AUROC.item()))
 
 
         result_dict['test_acc'].append(top1.avg)
-        result_dict['test_SUAmetric'].append(SUAmetric.item())
+        result_dict['test_auroc'].append(AUROC.item())
 
         return result_dict
     
