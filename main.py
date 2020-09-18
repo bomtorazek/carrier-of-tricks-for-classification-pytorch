@@ -15,7 +15,7 @@ def main():
     args = get_args()
     torch.manual_seed(args.seed)
 
-    shape = (224,224,3)    
+    shape = (256,256,3)    
 
     """ define dataloader """
     train_loader, valid_loader, test_loader = make_dataloader(args)
@@ -47,6 +47,7 @@ def main():
         """ load model checkpoint """
         model.load("best_model")
         result_dict = evaluator.test(test_loader, args, result_dict, True)
+        # print(model(torch.ones(1,3,256,256).cuda()))
 
         model.load("last_model")
         result_dict = evaluator.test(test_loader, args, result_dict, False)
@@ -78,7 +79,7 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-            if tolerance > 20:
+            if tolerance > 45:
                 break
 
         result_dict = evaluator.test(test_loader, args, result_dict, False)

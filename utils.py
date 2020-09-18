@@ -41,7 +41,8 @@ def get_model(args, shape, num_classes):
             shape,
             1000,
             checkpoint_dir=args.checkpoint_dir,
-            checkpoint_name=args.checkpoint_name
+            checkpoint_name=args.checkpoint_name,
+            args = args
         )#.cuda(args.gpu)
         pt_ckpt = torch.load('pretrained_weights/RegNetY-{}_dds_8gpu.pyth'.format(args.model_size), map_location="cpu")
         model.load_state_dict(pt_ckpt["model_state"])
@@ -125,7 +126,8 @@ def make_scheduler(args, optimizer):
     return scheduler
 
 def make_dataloader(args):
-    
+    shape = (256,256)
+
     train_trans = T.Compose([
     T.Resize((256, 256)),
     T.RandomHorizontalFlip(),
@@ -146,15 +148,15 @@ def make_dataloader(args):
         T.ToTensor(),
         ])
 
-    transdict = {'train': [To3channel(),Resize((256,256)), HFlip(), ToTensor()], 'val': [To3channel(),Resize((256,256)), ToTensor()], 'test':[To3channel(),Resize((256,256)), ToTensor()]}
+    transdict = {'train': [To3channel(),Resize(shape), HFlip(), ToTensor()], 'val': [To3channel(),Resize(shape), ToTensor()], 'test':[To3channel(),Resize(shape), ToTensor()]}
     
 
     # for sualab
     if args.sua_data:
         DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\{}\patch_cropped_binary-labeled_for_cls'.format(args.data_type)
-        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
+        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainvaltest.{}-1.txt'.format(args.sua_fold)), 
                 'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
-                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.1.txt')}
+                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold))}
         imdir = osp.join(DEFAULT_DATADIR, 'image')
         antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_2class.json')
         

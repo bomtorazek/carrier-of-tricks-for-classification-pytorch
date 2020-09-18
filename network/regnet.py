@@ -2,7 +2,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from network.anynet import AnyNet
-from option import get_args
+
 
 def quantize_float(f, q):
     """Converts a float to closest non-zero int divisible by q."""
@@ -40,7 +40,7 @@ def generate_regnet(w_a, w_0, w_m, d, q=8):
 
 class RegNet(AnyNet):
     """RegNetY-1.6GF model."""
-    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='RegNet',):
+    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='RegNet',args = None):
         self.shape = shape
         self.num_classes = num_classes
         self.checkpoint_dir = checkpoint_dir
@@ -53,7 +53,6 @@ class RegNet(AnyNet):
             os.makedirs(checkpoint_dir)
         self.checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name, 'model.pt')
 
-        args = get_args()
 
         SE_ON = True
         if args.model_size == '400MF':

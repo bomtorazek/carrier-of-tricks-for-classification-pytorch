@@ -334,7 +334,7 @@ class AnyStage(nn.Module):
 class AnyNet(nn.Module):
     """AnyNet model."""
 
-    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='Network', **kwargs):
+    def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='Network', args = None, **kwargs):
         super(AnyNet, self).__init__()
         self.shape = shape
         self.num_classes = num_classes
