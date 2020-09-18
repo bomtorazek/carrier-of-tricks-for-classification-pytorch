@@ -15,7 +15,7 @@ def main():
     args = get_args()
     torch.manual_seed(args.seed)
 
-    shape = (256,256,3)    
+    shape = (128,128,3)    
 
     """ define dataloader """
     train_loader, valid_loader, test_loader = make_dataloader(args)
@@ -79,7 +79,7 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-            if tolerance > 45:
+            if tolerance > 25:
                 break
 
         result_dict = evaluator.test(test_loader, args, result_dict, False)

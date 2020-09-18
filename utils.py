@@ -126,10 +126,10 @@ def make_scheduler(args, optimizer):
     return scheduler
 
 def make_dataloader(args):
-    shape = (256,256)
+    shape = (128,128)
 
     train_trans = T.Compose([
-    T.Resize((256, 256)),
+    T.Resize(shape),
     T.RandomHorizontalFlip(),
     T.ToTensor(),
     ])
@@ -139,24 +139,26 @@ def make_dataloader(args):
         train_trans.transforms.insert(0, RandAugment(args.rand_n, args.rand_m))
 
     valid_trans = T.Compose([
-        T.Resize((256, 256)),
+        T.Resize(shape),
         T.ToTensor(),
         ])
     
     test_trans = T.Compose([
-        T.Resize((256, 256)),
+        T.Resize(shape),
         T.ToTensor(),
         ])
 
-    transdict = {'train': [To3channel(),Resize(shape), HFlip(), ToTensor()], 'val': [To3channel(),Resize(shape), ToTensor()], 'test':[To3channel(),Resize(shape), ToTensor()]}
+    transdict = {'train': [To3channel(),Resize(shape), HFlip(), ToTensor(), Normalize(0,255)], 
+                'val': [To3channel(),Resize(shape), ToTensor(), Normalize(0,255)],
+                 'test':[To3channel(),Resize(shape), ToTensor(), Normalize(0,255)]}
     
 
     # for sualab
     if args.sua_data:
         DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\{}\patch_cropped_binary-labeled_for_cls'.format(args.data_type)
-        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainvaltest.{}-1.txt'.format(args.sua_fold)), 
+        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
                 'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
-                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold))}
+                'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.{}.txt'.format(args.sua_fold[0]))}
         imdir = osp.join(DEFAULT_DATADIR, 'image')
         antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_2class.json')
         
