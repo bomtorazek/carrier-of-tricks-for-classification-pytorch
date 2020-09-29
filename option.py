@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument('--checkpoint_name', type=str, default='') 
     parser.add_argument('--zero_gamma', action='store_true', default=False)
     parser.add_argument('--model_size', type =str, default = '3.2GF')
+    parser.add_argument('--acm', type = bool, default = False)
     parser.add_argument('--generate_jit', action ='store_true', default = False)
     parser.add_argument('--generate_model', action ='store_true', default = False)
 

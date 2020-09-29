@@ -10,6 +10,10 @@ import torch
 import torch.nn as nn
 import math
 import os
+import torch.nn.functional as F
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from attend_and_compare.context_module import ACM
 
 def init_weights(m):
     """Performs ResNet-style weight initialization."""
@@ -62,10 +66,19 @@ class AnyHead(nn.Module):
         self.fc = nn.Linear(w_in, nc, bias=True)
 
     def forward(self, x):
+        if isinstance(x, tuple):
+            x, dp = x
+        else:
+            dp = None
+
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-        return x
+
+        if dp is not None:
+            return x, dp
+        else:
+            return x
 
 
 class VanillaBlock(nn.Module):
@@ -154,7 +167,7 @@ class ResBasicBlock(nn.Module):
         return x
 
 
-class SE(nn.Module):
+class SE(nn.Module): # 
     """Squeeze-and-Excitation (SE) block"""
 
     def __init__(self, w_in, w_se):
@@ -179,11 +192,11 @@ class SE(nn.Module):
 class BottleneckTransform(nn.Module):
     """Bottlenect transformation: 1x1, 3x3, 1x1"""
 
-    def __init__(self, w_in, w_out, stride, bm, gw, se_r):
+    def __init__(self, w_in, w_out, stride, bm, gw, se_r, acm):
         super(BottleneckTransform, self).__init__()
-        self._construct(w_in, w_out, stride, bm, gw, se_r)
+        self._construct(w_in, w_out, stride, bm, gw, se_r, acm)
 
-    def _construct(self, w_in, w_out, stride, bm, gw, se_r):
+    def _construct(self, w_in, w_out, stride, bm, gw, se_r, acm):
         # Compute the bottleneck width
         w_b = int(round(w_out * bm))
         # Compute the number of groups
@@ -198,27 +211,44 @@ class BottleneckTransform(nn.Module):
         )
         self.b_bn = nn.BatchNorm2d(w_b, eps=1e-5, momentum=0.1)
         self.b_relu = nn.ReLU(inplace=True)
+
         # Squeeze-and-Excitation (SE)
-        if se_r:
+        if acm:
+            self.acm = ACM(num_heads = 36, num_features= w_b)
+            self.acm.init_parameters()
+
+        elif se_r:
             w_se = int(round(w_in * se_r))
-            self.se = SE(w_b, w_se)
+            self.se = SE(w_b, w_se) 
+
         # 1x1, BN
         self.c = nn.Conv2d(w_b, w_out, kernel_size=1, stride=1, padding=0, bias=False)
         self.c_bn = nn.BatchNorm2d(w_out, eps=1e-5, momentum=0.1)
         self.c_bn.final_bn = True
 
     def forward(self, x):
+        if isinstance(x, tuple):
+            x, prev_dp = x
+        else:
+            prev_dp = None
+
         for layer in self.children():
+            # if type(layer) == type(self.acm):
             x = layer(x)
-        return x
+            if isinstance(x, tuple):
+                x, dp = x
+                if prev_dp is not None:
+                    dp = prev_dp + dp
+                # print(dp[0].item())
+        return x, dp
 
 
 class ResBottleneckBlock(nn.Module):
     """Residual bottleneck block: x + F(x), F = bottleneck transform"""
 
-    def __init__(self, w_in, w_out, stride, bm=1.0, gw=1, se_r=None):
+    def __init__(self, w_in, w_out, stride, bm=1.0, gw=1, se_r=None, acm = False):
         super(ResBottleneckBlock, self).__init__()
-        self._construct(w_in, w_out, stride, bm, gw, se_r)
+        self._construct(w_in, w_out, stride, bm, gw, se_r, acm)
 
     def _add_skip_proj(self, w_in, w_out, stride):
         self.proj = nn.Conv2d(
@@ -226,21 +256,38 @@ class ResBottleneckBlock(nn.Module):
         )
         self.bn = nn.BatchNorm2d(w_out, eps=1e-5, momentum=0.1)
 
-    def _construct(self, w_in, w_out, stride, bm, gw, se_r):
+    def _construct(self, w_in, w_out, stride, bm, gw, se_r,acm):
         # Use skip connection with projection if shape changes
         self.proj_block = (w_in != w_out) or (stride != 1)
         if self.proj_block:
             self._add_skip_proj(w_in, w_out, stride)
-        self.f = BottleneckTransform(w_in, w_out, stride, bm, gw, se_r)
+        self.f = BottleneckTransform(w_in, w_out, stride, bm, gw, se_r, acm)
         self.relu = nn.ReLU(True)
 
     def forward(self, x):
-        if self.proj_block:
-            x = self.bn(self.proj(x)) + self.f(x)
+        bottled = self.f(x)
+        if isinstance(bottled, tuple):
+            bottled, dp = bottled
         else:
-            x = x + self.f(x)
+            dp = None # for the case of not using ortho. or acm
+            print("not using acm")
+
+        if isinstance(x, tuple):
+            x, _ =x
+
+        if self.proj_block:
+            x = self.bn(self.proj(x)) + bottled # bottleneckblock
+
+        else:
+            x = x + bottled
+
         x = self.relu(x)
-        return x
+
+        if dp is not None:
+            return x, dp
+        else:
+            return x
+
 
 
 class ResStemCifar(nn.Module):
@@ -310,11 +357,11 @@ class SimpleStemIN(nn.Module):
 class AnyStage(nn.Module):
     """AnyNet stage (sequence of blocks w/ the same output shape)."""
 
-    def __init__(self, w_in, w_out, stride, d, block_fun, bm, gw, se_r):
+    def __init__(self, w_in, w_out, stride, d, block_fun, bm, gw, se_r, acm):
         super(AnyStage, self).__init__()
-        self._construct(w_in, w_out, stride, d, block_fun, bm, gw, se_r)
+        self._construct(w_in, w_out, stride, d, block_fun, bm, gw, se_r, acm)
 
-    def _construct(self, w_in, w_out, stride, d, block_fun, bm, gw, se_r):
+    def _construct(self, w_in, w_out, stride, d, block_fun, bm, gw, se_r, acm):
         # Construct the blocks
         for i in range(d):
             # Stride and w_in apply to the first block of the stage
@@ -322,18 +369,18 @@ class AnyStage(nn.Module):
             b_w_in = w_in if i == 0 else w_out
             # Construct the block
             self.add_module(
-                "b{}".format(i + 1), block_fun(b_w_in, w_out, b_stride, bm, gw, se_r)
+                "b{}".format(i + 1), block_fun(b_w_in, w_out, b_stride, bm, gw, se_r, acm)
             )
 
-    def forward(self, x):
+    def forward(self, x): #No need to fix cause it is just a sequence of blocks
         for block in self.children():
             x = block(x)
         return x
 
 
-class AnyNet(nn.Module):
+class AnyNet(nn.Module):  
     """AnyNet model."""
-
+    """AnyNet module >> Anystage block >> ResBottleneckBlock proj_block >> BottleneckTransform layer """
     def __init__(self, shape, num_classes=2, checkpoint_dir='checkpoint', checkpoint_name='Network', args = None, **kwargs):
         super(AnyNet, self).__init__()
         self.shape = shape
@@ -359,7 +406,8 @@ class AnyNet(nn.Module):
                 bms=kwargs["bms"],
                 gws=kwargs["gws"],
                 se_r=kwargs["se_r"],
-                nc=self.num_classes #kwargs["nc"],
+                nc=self.num_classes, #kwargs["nc"],
+                acm = kwargs["acm"]
             )
         else:
             self._construct(
@@ -373,10 +421,11 @@ class AnyNet(nn.Module):
                 gws=[],
                 se_r=0.25 if True else None,
                 nc=self.num_classes,
+                acm = False
             )
         self.apply(init_weights)
 
-    def _construct(self, stem_type, stem_w, block_type, ds, ws, ss, bms, gws, se_r, nc):
+    def _construct(self, stem_type, stem_w, block_type, ds, ws, ss, bms, gws, se_r, nc, acm):
         # Generate dummy bot muls and gs for models that do not use them
         bms = bms if bms else [1.0 for _d in ds]
         gws = gws if gws else [1 for _d in ds]
@@ -384,21 +433,22 @@ class AnyNet(nn.Module):
         stage_params = list(zip(ds, ws, ss, bms, gws))
         # Construct the stem
         stem_fun = get_stem_fun(stem_type)
-        self.stem = stem_fun(3, stem_w)
+        self.stem = stem_fun(3, stem_w) # do not be used, stem is plane model
         # Construct the stages
         block_fun = get_block_fun(block_type)
         prev_w = stem_w
         for i, (d, w, s, bm, gw) in enumerate(stage_params):
             self.add_module(
-                "s{}".format(i + 1), AnyStage(prev_w, w, s, d, block_fun, bm, gw, se_r)
+                "s{}".format(i + 1), AnyStage(prev_w, w, s, d, block_fun, bm, gw, se_r, acm)
             )
             prev_w = w
         # Construct the head
         self.prev_w = prev_w
         self.head = AnyHead(w_in=prev_w, nc=nc)
 
-    def forward(self, x):
-        for module in self.children():
+    def forward(self, x): # (64,3,256,256)
+        x= F.interpolate(x, size = 224, mode = 'bilinear') # it is just the merge of anystage
+        for module in self.children(): #FIXME
             x = module(x)
         return x
 

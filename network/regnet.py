@@ -2,6 +2,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from network.anynet import AnyNet
+import sys
 
 
 def quantize_float(f, q):
@@ -137,6 +138,7 @@ class RegNet(AnyNet):
             "bms": bms,
             "gws": gws,
             "se_r": se_r,
-            "nc": self.num_classes
+            "nc": self.num_classes,
+            "acm": args.acm
         }
         super(RegNet, self).__init__(shape, num_classes, checkpoint_dir, checkpoint_name, **kwargs)

@@ -45,8 +45,11 @@ def get_model(args, shape, num_classes):
             args = args
         )#.cuda(args.gpu)
         pt_ckpt = torch.load('pretrained_weights/RegNetY-{}_dds_8gpu.pyth'.format(args.model_size), map_location="cpu")
-        model.load_state_dict(pt_ckpt["model_state"])
+        model.load_state_dict(pt_ckpt["model_state"], strict = False) # FIXME
         model.head = AnyHead(w_in=model.prev_w, nc=num_classes)#.cuda(args.gpu)
+        # for k, v in model.state_dict().items():
+        #     print(k)
+
     elif 'EfficientNet' in args.model:
         model = eval(args.model)(
             shape,
@@ -148,16 +151,16 @@ def make_dataloader(args):
         T.ToTensor(),
         ])
 
-    transdict = {'train': [To3channel(),Resize(shape), HFlip(), ToTensor(), Normalize(0,255)], 
-                'val': [To3channel(),Resize(shape), ToTensor(), Normalize(0,255)],
-                 'test':[To3channel(),Resize(shape), ToTensor(), Normalize(0,255)]}
-    
+    transdict = {'train': [T.Resize(shape),T.RandomHorizontalFlip(),T.ToTensor()], 
+                'val': [T.Resize(shape),T.ToTensor()],
+                 'test':[T.Resize(shape),T.ToTensor()]}
+    # Normalize(0,255.)
 
     # for sualab
     if args.sua_data:
         DEFAULT_DATADIR = r'C:\Users\esuh\data\999_project\015_COI_rnd_tf\a415f-white\{}\patch_cropped_binary-labeled_for_cls'.format(args.data_type)
-        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainval.{}-1.txt'.format(args.sua_fold)), 
-                'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test-dev.{}.txt'.format(args.sua_fold)),
+        imsets = {'train': osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\trainvaldev.{}-1.txt'.format(args.sua_fold)), 
+                'val':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.{}.txt'.format(args.sua_fold[0])),
                 'test':osp.join(DEFAULT_DATADIR, r'imageset\single_2class\fold.5-5-4\ratio\100%\test.{}.txt'.format(args.sua_fold[0]))}
         imdir = osp.join(DEFAULT_DATADIR, 'image')
         antnpath = osp.join(DEFAULT_DATADIR, 'annotation', 'single_2class.json')

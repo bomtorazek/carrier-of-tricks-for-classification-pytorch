@@ -31,15 +31,21 @@ class Trainer:
         labels_list =[]
         for batch_idx, (inputs, labels) in enumerate(data_loader):
             inputs, labels = inputs.cuda(), labels.cuda()
-
             if args.cutmix_alpha > 0:
                 r = np.random.rand(1)
                 if r < args.cutmix_prob:
                     outputs, loss = cutmix(args, self.model, self.criterion, inputs, labels)
             else:
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
+                if isinstance(outputs, tuple):
+                        # has dot product
+                    outputs, dp = outputs
+                else:
+                    dp = None
 
+                loss = self.criterion(outputs, labels)
+                #FIXME
+            
             if len(labels.size()) > 1:
                 labels = torch.argmax(labels, axis=1)
 
@@ -48,6 +54,9 @@ class Trainer:
             output_list.append(outputs)
             labels_list.append(labels)
 
+            if dp is not None:
+                dp_loss = 0.1 * torch.abs(dp.mean())
+                loss = loss + dp_loss
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
             

@@ -2,6 +2,7 @@ import os
 import json
 import torch
 from utils import AverageMeter, accuracy, auroc
+import time 
 
 class Evaluator():
     def __init__(self, model, criterion):
@@ -55,12 +56,21 @@ class Evaluator():
 
                 inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = self.model(inputs)
+                if isinstance(outputs, tuple):
+                        # has dot product
+                    outputs, dp = outputs
+                else:
+                    dp = None
+               
                 loss = self.criterion(outputs, labels)
 
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
              
                 output_list.append(outputs)
                 labels_list.append(labels)
+                if dp is not None:
+                    dp_loss = 0.1 * torch.abs(dp.mean())
+                    loss = loss + dp_loss
                 losses.update(loss.item(), inputs.size(0))
                 top1.update(prec1.item(), inputs.size(0))
 
@@ -85,17 +95,25 @@ class Evaluator():
         with torch.no_grad():
             output_list = []
             labels_list =[]
+            timesum = 0
             for batch_idx, (inputs, labels) in enumerate(data_loader):
 
                 inputs, labels = inputs.cuda(), labels.cuda()
-                outputs = self.model(inputs)
                 
+                outputs = self.model(inputs)
+                if isinstance(outputs, tuple):
+                        # has dot product
+                    outputs, dp = outputs
+                else:
+                    dp = None
+
                 prec1, prec3 = accuracy(outputs.data, labels, args.num_classes,topk=(1, 3))
 
                 output_list.append(outputs)
                 labels_list.append(labels)
 
                 top1.update(prec1.item(), inputs.size(0))
+            
 
 
         if is_best:

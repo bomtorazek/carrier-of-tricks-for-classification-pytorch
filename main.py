@@ -10,12 +10,14 @@ from option import get_args
 from learning.trainer import Trainer
 from learning.evaluator import Evaluator
 from utils import get_model, make_optimizer, make_scheduler, make_dataloader, plot_learning_curves
+import time
 
 def main():
     args = get_args()
     torch.manual_seed(args.seed)
+    torch.backends.cudnn.benchmark = True
 
-    shape = (128,128,3)    
+    shape = (128,128,3) # doesn't do anything
 
     """ define dataloader """
     train_loader, valid_loader, test_loader = make_dataloader(args)
@@ -45,10 +47,12 @@ def main():
 
     if args.evaluate:
         """ load model checkpoint """
-        model.load("best_model")
-        result_dict = evaluator.test(test_loader, args, result_dict, True)
-        # print(model(torch.ones(1,3,256,256).cuda()))
 
+        model.load("best_model")
+        start = time.time()
+        result_dict = evaluator.test(test_loader, args, result_dict, True)
+        print(time.time() - start)
+        # print(model(torch.ones(1,3,256,256).cuda()))
         model.load("last_model")
         result_dict = evaluator.test(test_loader, args, result_dict, False)
 
@@ -79,7 +83,7 @@ def main():
             evaluator.save(result_dict)
             plot_learning_curves(result_dict, epoch, args)
 
-            if tolerance > 25:
+            if tolerance > 50:
                 break
 
         result_dict = evaluator.test(test_loader, args, result_dict, False)
